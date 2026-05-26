@@ -1,7 +1,7 @@
 max_articles: 5
 max_candidates: 100
 min_citations: 300
-max_citations: 8000
+max_citations: 10000
 min_publication_year: 2000
 max_publication_year: 2025
 
