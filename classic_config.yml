@@ -1,8 +1,8 @@
-max_articles: 1
-max_candidates: 50
+max_articles: 5
+max_candidates: 100
 min_citations: 300
-min_publication_year: 1950
-max_publication_year: 2021
+min_publication_year: 2000
+max_publication_year: 2025
 
 weekday_themes:
   monday:
