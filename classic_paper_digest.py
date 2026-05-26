@@ -166,6 +166,14 @@ def passes_basic_filters(article):
 
     if article["cited_by_count"] > CONFIG.get("max_citations", 10000):
         return False
+
+    text = normalize_text(article["title"] + " " + article["abstract"] + " " + article["journal"])
+
+    required_terms = CONFIG.get("required_relevance_terms", [])
+    if required_terms:
+        if not any(term.lower() in text for term in required_terms):
+            return False
+    
     # 明らかな非論文タイプを避ける
     bad_types = {"editorial", "letter", "erratum", "paratext"}
     if article.get("type", "").lower() in bad_types:
