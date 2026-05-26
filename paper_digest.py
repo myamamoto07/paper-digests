@@ -3,6 +3,7 @@ import re
 import smtplib
 import textwrap
 import requests
+import yaml
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
@@ -11,68 +12,24 @@ from email.mime.multipart import MIMEMultipart
 import argostranslate.package
 import argostranslate.translate
 
-
-JOURNALS = [
-    "Nature Genetics",
-    "American Journal of Human Genetics",
-    "Cell Genomics",
-    "Molecular Psychiatry",
-    "JAMA Psychiatry",
-    "The Lancet Psychiatry",
-    "American Journal of Psychiatry",
-    "Biological Psychiatry",
-    "Translational Psychiatry",
-    "Neuropsychopharmacology",
-    "Genome Medicine",
-    "Genome Biology",
-    "Bioinformatics",
-    "Genetic Epidemiology",
-    "PLOS Genetics",
-    "Schizophrenia Bulletin",
-    "Psychological Medicine",
-]
-
-KEYWORDS_HIGH = [
-    "polygenic risk score",
-    "PRS",
-    "GWAS",
-    "psychiatric genomics",
-    "genomic SEM",
-    "genetic correlation",
-    "cross-disorder",
-    "transdiagnostic",
-    "fine-mapping",
-    "Mendelian randomization",
-]
-
-KEYWORDS_DISEASE = [
-    "bipolar disorder",
-    "schizophrenia",
-    "major depression",
-    "major depressive disorder",
-    "suicide",
-    "suicidal",
-    "autism",
-    "ADHD",
-    "anxiety",
-    "PTSD",
-    "obsessive-compulsive disorder",
-]
-
-KEYWORDS_EXTRA = [
-    "machine learning",
-    "deep learning",
-    "multi-omics",
-    "pathway",
-    "gene expression",
-    "brain imaging",
-    "biobank",
-    "phenome-wide",
-    "electronic health record",
-]
-
-
+CONFIG_FILE = "config.yml"
 SEEN_FILE = "seen_pmids.txt"
+
+
+def load_config():
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+CONFIG = load_config()
+
+JOURNALS = CONFIG["journals"]
+
+KEYWORD_GROUPS = CONFIG["keyword_groups"]
+
+KEYWORDS_HIGH = KEYWORD_GROUPS["high"]["terms"]
+KEYWORDS_DISEASE = KEYWORD_GROUPS["disease"]["terms"]
+KEYWORDS_EXTRA = KEYWORD_GROUPS["extra"]["terms"]
 
 
 def load_seen_pmids():
@@ -194,43 +151,46 @@ def normalize_text(text):
     return re.sub(r"\s+", " ", text.lower())
 
 
+def contains_term(text, term):
+    text = text.lower()
+    term_lower = term.lower()
+
+    # PRS, GWAS, ADHD など短い略語は単語境界で判定する
+    if len(term_lower) <= 5 and re.fullmatch(r"[a-z0-9]+", term_lower):
+        return re.search(rf"\b{re.escape(term_lower)}\b", text) is not None
+
+    return term_lower in text
+
+
 def score_article(article):
-    text = normalize_text(article["title"] + " " + article["abstract"] + " " + article["journal"])
+    text = normalize_text(
+        article["title"] + " " + article["abstract"] + " " + article["journal"]
+    )
+
     score = 0
     reasons = []
 
-    elite_journals = [
-        "nature genetics",
-        "american journal of human genetics",
-        "molecular psychiatry",
-        "jama psychiatry",
-        "the lancet psychiatry",
-        "american journal of psychiatry",
-        "biological psychiatry",
-        "cell genomics",
-        "genome medicine",
-    ]
+    journal_scores = {
+        journal.lower(): value
+        for journal, value in CONFIG.get("journal_scores", {}).items()
+    }
 
-    if article["journal"].lower() in elite_journals:
-        score += 3
-        reasons.append("主要誌")
+    journal_name = article["journal"].lower()
 
-    for kw in KEYWORDS_HIGH:
-        if kw.lower() in text:
-            score += 3
-            reasons.append(kw)
+    if journal_name in journal_scores:
+        add_score = journal_scores[journal_name]
+        score += add_score
+        reasons.append(f"主要誌 +{add_score}")
 
-    for kw in KEYWORDS_DISEASE:
-        if kw.lower() in text:
-            score += 2
-            reasons.append(kw)
+    for group_name, group in CONFIG["keyword_groups"].items():
+        group_score = group["score"]
+        terms = group["terms"]
 
-    for kw in KEYWORDS_EXTRA:
-        if kw.lower() in text:
-            score += 1
-            reasons.append(kw)
+        for term in terms:
+            if contains_term(text, term):
+                score += group_score
+                reasons.append(f"{term} +{group_score}")
 
-    # 重複除去
     reasons = list(dict.fromkeys(reasons))
 
     return score, reasons
@@ -335,7 +295,7 @@ def send_email(subject, body):
 def main():
     seen_pmids = load_seen_pmids()
 
-    query = build_pubmed_query(days=3)
+    query = build_pubmed_query(days=CONFIG.get("lookback_days", 3))
     pmids = pubmed_esearch(query, retmax=80)
 
     new_pmids = [pmid for pmid in pmids if pmid not in seen_pmids]
@@ -353,13 +313,13 @@ def main():
         article["reasons"] = reasons
 
         # スコアが低すぎるものは送らない
-        if score >= 5:
+        if score >= CONFIG.get("score_threshold", 5):
             scored_articles.append(article)
 
     scored_articles = sorted(scored_articles, key=lambda x: x["score"], reverse=True)
 
     # 毎日読む量として最大5本
-    selected_articles = scored_articles[:5]
+    selected_articles = scored_articles[:CONFIG.get("max_articles", 5)]
 
     if not selected_articles:
         print("No articles passed score threshold.")
