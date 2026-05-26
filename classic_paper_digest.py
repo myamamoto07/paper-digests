@@ -164,6 +164,8 @@ def passes_basic_filters(article):
     if article["cited_by_count"] < CONFIG.get("min_citations", 300):
         return False
 
+    if article["cited_by_count"] > CONFIG.get("max_citations", 10000):
+        return False
     # 明らかな非論文タイプを避ける
     bad_types = {"editorial", "letter", "erratum", "paratext"}
     if article.get("type", "").lower() in bad_types:
