@@ -1,0 +1,386 @@
+import os
+import re
+import smtplib
+import textwrap
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+import argostranslate.package
+import argostranslate.translate
+
+
+JOURNALS = [
+    "Nature Genetics",
+    "American Journal of Human Genetics",
+    "Cell Genomics",
+    "Molecular Psychiatry",
+    "JAMA Psychiatry",
+    "The Lancet Psychiatry",
+    "American Journal of Psychiatry",
+    "Biological Psychiatry",
+    "Translational Psychiatry",
+    "Neuropsychopharmacology",
+    "Genome Medicine",
+    "Genome Biology",
+    "Bioinformatics",
+    "Genetic Epidemiology",
+    "PLOS Genetics",
+    "Schizophrenia Bulletin",
+    "Psychological Medicine",
+]
+
+KEYWORDS_HIGH = [
+    "polygenic risk score",
+    "PRS",
+    "GWAS",
+    "psychiatric genomics",
+    "genomic SEM",
+    "genetic correlation",
+    "cross-disorder",
+    "transdiagnostic",
+    "fine-mapping",
+    "Mendelian randomization",
+]
+
+KEYWORDS_DISEASE = [
+    "bipolar disorder",
+    "schizophrenia",
+    "major depression",
+    "major depressive disorder",
+    "suicide",
+    "suicidal",
+    "autism",
+    "ADHD",
+    "anxiety",
+    "PTSD",
+    "obsessive-compulsive disorder",
+]
+
+KEYWORDS_EXTRA = [
+    "machine learning",
+    "deep learning",
+    "multi-omics",
+    "pathway",
+    "gene expression",
+    "brain imaging",
+    "biobank",
+    "phenome-wide",
+    "electronic health record",
+]
+
+
+SEEN_FILE = "seen_pmids.txt"
+
+
+def load_seen_pmids():
+    if not os.path.exists(SEEN_FILE):
+        return set()
+    with open(SEEN_FILE, "r", encoding="utf-8") as f:
+        return set(line.strip() for line in f if line.strip())
+
+
+def save_seen_pmids(pmids):
+    old = load_seen_pmids()
+    merged = sorted(old.union(set(pmids)))
+    with open(SEEN_FILE, "w", encoding="utf-8") as f:
+        for pmid in merged:
+            f.write(pmid + "\n")
+
+
+def build_pubmed_query(days=3):
+    # 毎日実行でも、PubMed側の登録遅延を考えて直近3日を見る
+    journal_query = " OR ".join([f'"{j}"[Journal]' for j in JOURNALS])
+
+    topic_terms = KEYWORDS_HIGH + KEYWORDS_DISEASE + KEYWORDS_EXTRA
+    topic_query = " OR ".join([f'"{k}"[Title/Abstract]' for k in topic_terms])
+
+    today = datetime.now(timezone.utc).date()
+    start = today - timedelta(days=days)
+
+    date_query = f'("{start}"[Date - Publication] : "{today}"[Date - Publication])'
+
+    query = f"({journal_query}) AND ({topic_query}) AND {date_query}"
+    return query
+
+
+def pubmed_esearch(query, retmax=50):
+    email = os.environ.get("NCBI_EMAIL", "")
+    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+
+    params = {
+        "db": "pubmed",
+        "term": query,
+        "retmode": "json",
+        "retmax": retmax,
+        "sort": "pub+date",
+        "email": email,
+    }
+
+    r = requests.get(url, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    return data.get("esearchresult", {}).get("idlist", [])
+
+
+def pubmed_efetch(pmids):
+    if not pmids:
+        return []
+
+    email = os.environ.get("NCBI_EMAIL", "")
+    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+
+    params = {
+        "db": "pubmed",
+        "id": ",".join(pmids),
+        "retmode": "xml",
+        "email": email,
+    }
+
+    r = requests.get(url, params=params, timeout=30)
+    r.raise_for_status()
+
+    root = ET.fromstring(r.text)
+    articles = []
+
+    for article in root.findall(".//PubmedArticle"):
+        pmid_el = article.find(".//PMID")
+        pmid = pmid_el.text if pmid_el is not None else ""
+
+        title_el = article.find(".//ArticleTitle")
+        title = "".join(title_el.itertext()).strip() if title_el is not None else "No title"
+
+        journal_el = article.find(".//Journal/Title")
+        journal = journal_el.text.strip() if journal_el is not None and journal_el.text else "Unknown journal"
+
+        year_el = article.find(".//PubDate/Year")
+        medline_date_el = article.find(".//PubDate/MedlineDate")
+
+        if year_el is not None and year_el.text:
+            pub_date = year_el.text
+        elif medline_date_el is not None and medline_date_el.text:
+            pub_date = medline_date_el.text
+        else:
+            pub_date = "Unknown date"
+
+        abstract_parts = []
+        for abs_el in article.findall(".//Abstract/AbstractText"):
+            label = abs_el.attrib.get("Label")
+            text = " ".join("".join(abs_el.itertext()).split())
+            if label:
+                abstract_parts.append(f"{label}: {text}")
+            else:
+                abstract_parts.append(text)
+
+        abstract = "\n".join(abstract_parts).strip()
+
+        articles.append(
+            {
+                "pmid": pmid,
+                "title": title,
+                "journal": journal,
+                "pub_date": pub_date,
+                "abstract": abstract,
+                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else "",
+            }
+        )
+
+    return articles
+
+
+def normalize_text(text):
+    return re.sub(r"\s+", " ", text.lower())
+
+
+def score_article(article):
+    text = normalize_text(article["title"] + " " + article["abstract"] + " " + article["journal"])
+    score = 0
+    reasons = []
+
+    elite_journals = [
+        "nature genetics",
+        "american journal of human genetics",
+        "molecular psychiatry",
+        "jama psychiatry",
+        "the lancet psychiatry",
+        "american journal of psychiatry",
+        "biological psychiatry",
+        "cell genomics",
+        "genome medicine",
+    ]
+
+    if article["journal"].lower() in elite_journals:
+        score += 3
+        reasons.append("主要誌")
+
+    for kw in KEYWORDS_HIGH:
+        if kw.lower() in text:
+            score += 3
+            reasons.append(kw)
+
+    for kw in KEYWORDS_DISEASE:
+        if kw.lower() in text:
+            score += 2
+            reasons.append(kw)
+
+    for kw in KEYWORDS_EXTRA:
+        if kw.lower() in text:
+            score += 1
+            reasons.append(kw)
+
+    # 重複除去
+    reasons = list(dict.fromkeys(reasons))
+
+    return score, reasons
+
+
+def setup_argos_translation():
+    installed_languages = argostranslate.translate.get_installed_languages()
+    has_en_ja = any(
+        lang.code == "en" and any(t.to_lang.code == "ja" for t in lang.translations_from)
+        for lang in installed_languages
+    )
+
+    if has_en_ja:
+        return
+
+    argostranslate.package.update_package_index()
+    available_packages = argostranslate.package.get_available_packages()
+
+    package_to_install = None
+    for package in available_packages:
+        if package.from_code == "en" and package.to_code == "ja":
+            package_to_install = package
+            break
+
+    if package_to_install is None:
+        raise RuntimeError("English to Japanese translation package was not found.")
+
+    path = package_to_install.download()
+    argostranslate.package.install_from_path(path)
+
+
+def translate_to_japanese(text):
+    if not text:
+        return "Abstractなし"
+
+    # 長すぎる場合に備えて分割
+    chunks = textwrap.wrap(text, width=1800, break_long_words=False, replace_whitespace=False)
+    translated_chunks = []
+
+    for chunk in chunks:
+        translated = argostranslate.translate.translate(chunk, "en", "ja")
+        translated_chunks.append(translated)
+
+    return "\n".join(translated_chunks)
+
+
+def build_email_body(articles):
+    today_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+
+    if not articles:
+        return f"本日の該当論文はありませんでした。\n\nDate: {today_jst}"
+
+    lines = []
+    lines.append(f"精神医学・遺伝統計学 注目論文 Daily Digest")
+    lines.append(f"Date: {today_jst}")
+    lines.append("")
+    lines.append(f"本日の抽出論文数: {len(articles)}")
+    lines.append("")
+
+    for i, a in enumerate(articles, start=1):
+        reasons = ", ".join(a["reasons"]) if a["reasons"] else "主要キーワードに該当"
+
+        lines.append("=" * 80)
+        lines.append(f"{i}. {a['title']}")
+        lines.append("")
+        lines.append(f"Journal: {a['journal']}")
+        lines.append(f"Publication date: {a['pub_date']}")
+        lines.append(f"PMID: {a['pmid']}")
+        lines.append(f"Score: {a['score']}")
+        lines.append(f"注目理由: {reasons}")
+        lines.append(f"PubMed: {a['url']}")
+        lines.append("")
+        lines.append("Abstract 日本語訳:")
+        lines.append(a["abstract_ja"])
+        lines.append("")
+
+        if a["abstract"]:
+            lines.append("Original Abstract:")
+            lines.append(a["abstract"])
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+def send_email(subject, body):
+    gmail_user = os.environ["GMAIL_USER"]
+    gmail_app_password = os.environ["GMAIL_APP_PASSWORD"]
+    mail_to = os.environ["MAIL_TO"]
+
+    msg = MIMEMultipart()
+    msg["From"] = gmail_user
+    msg["To"] = mail_to
+    msg["Subject"] = subject
+
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(gmail_user, gmail_app_password)
+        server.send_message(msg)
+
+
+def main():
+    seen_pmids = load_seen_pmids()
+
+    query = build_pubmed_query(days=3)
+    pmids = pubmed_esearch(query, retmax=80)
+
+    new_pmids = [pmid for pmid in pmids if pmid not in seen_pmids]
+
+    if not new_pmids:
+        print("No new articles.")
+        return
+
+    articles = pubmed_efetch(new_pmids)
+
+    scored_articles = []
+    for article in articles:
+        score, reasons = score_article(article)
+        article["score"] = score
+        article["reasons"] = reasons
+
+        # スコアが低すぎるものは送らない
+        if score >= 5:
+            scored_articles.append(article)
+
+    scored_articles = sorted(scored_articles, key=lambda x: x["score"], reverse=True)
+
+    # 毎日読む量として最大5本
+    selected_articles = scored_articles[:5]
+
+    if not selected_articles:
+        print("No articles passed score threshold.")
+        save_seen_pmids(new_pmids)
+        return
+
+    setup_argos_translation()
+
+    for article in selected_articles:
+        article["abstract_ja"] = translate_to_japanese(article["abstract"])
+
+    today_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+    subject = f"Daily論文Digest 精神医学・遺伝統計 {today_jst}"
+    body = build_email_body(selected_articles)
+
+    send_email(subject, body)
+
+    save_seen_pmids(new_pmids)
+
+    print(f"Sent {len(selected_articles)} articles.")
+
+
+if __name__ == "__main__":
+    main()
