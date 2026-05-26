@@ -1,0 +1,43 @@
+name: Daily Paper Digest
+
+on:
+  schedule:
+    # 毎日 08:10 JST = 前日 23:10 UTC
+    - cron: "10 23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install requests argostranslate
+
+      - name: Run paper digest
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+        run: python paper_digest.py
+
+      - name: Commit seen PMIDs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add seen_pmids.txt
+          git diff --cached --quiet || git commit -m "Update seen PMIDs"
+          git push
