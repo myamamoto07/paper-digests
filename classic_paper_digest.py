@@ -298,43 +298,45 @@ def translate_to_japanese(text):
     return data.get("translated", "")
 
 
-def build_email_body(article, theme_label):
+def build_email_body(articles, theme_label):
     today_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
 
     lines = []
     lines.append("Classic Paper Digest")
     lines.append(f"Date: {today_jst}")
     lines.append(f"本日のテーマ: {theme_label}")
+    lines.append(f"紹介論文数: {len(articles)}")
     lines.append("")
-    lines.append("=" * 80)
-    lines.append("")
-    lines.append(f"Title: {article['title']}")
-    lines.append("")
-    lines.append(f"Authors: {article['authors']}")
-    lines.append(f"Journal: {article['journal']}")
-    lines.append(f"Publication year: {article['year']}")
-    lines.append(f"Citation count: {article['cited_by_count']}")
-    lines.append(f"OpenAlex score: {article['score']}")
-    lines.append(f"Type: {article['type']}")
-    lines.append(f"DOI: {article['doi']}")
-    lines.append(f"URL: {article['url']}")
-    lines.append("")
-    lines.append("選定理由:")
-    for reason in article["reasons"]:
-        lines.append(f"- {reason}")
-    lines.append("")
-    lines.append("なぜ読むべきか:")
-    lines.append(make_reading_note(article, theme_label))
-    lines.append("")
-    lines.append("Abstract 日本語訳（機械翻訳・要確認）:")
-    lines.append(article.get("abstract_ja", "Abstractなし"))
-    lines.append("")
-    lines.append("Original Abstract:")
-    lines.append(article.get("abstract", "Abstractなし"))
-    lines.append("")
+
+    for i, article in enumerate(articles, start=1):
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"{i}. {article['title']}")
+        lines.append("")
+        lines.append(f"Authors: {article['authors']}")
+        lines.append(f"Journal: {article['journal']}")
+        lines.append(f"Publication year: {article['year']}")
+        lines.append(f"Citation count: {article['cited_by_count']}")
+        lines.append(f"OpenAlex score: {article['score']}")
+        lines.append(f"Type: {article['type']}")
+        lines.append(f"DOI: {article['doi']}")
+        lines.append(f"URL: {article['url']}")
+        lines.append("")
+        lines.append("選定理由:")
+        for reason in article["reasons"]:
+            lines.append(f"- {reason}")
+        lines.append("")
+        lines.append("なぜ読むべきか:")
+        lines.append(make_reading_note(article, theme_label))
+        lines.append("")
+        lines.append("Abstract 日本語訳（機械翻訳・要確認）:")
+        lines.append(article.get("abstract_ja", "Abstractなし"))
+        lines.append("")
+        lines.append("Original Abstract:")
+        lines.append(article.get("abstract", "Abstractなし"))
+        lines.append("")
 
     return "\n".join(lines)
-
 
 def make_reading_note(article, theme_label):
     notes = []
@@ -393,21 +395,25 @@ def main():
         print("No classic paper candidates found.")
         return
 
-    selected = candidates[0]
+    max_articles = CONFIG.get("max_articles", 1)
+    selected_articles = candidates[:max_articles]
 
-    selected["abstract_ja"] = translate_to_japanese(selected["abstract"])
+    for article in selected_articles:
+        article["abstract_ja"] = translate_to_japanese(article["abstract"])
 
     today_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
     subject = f"Classic論文Digest {theme_label} {today_jst}"
-    body = build_email_body(selected, theme_label)
+    body = build_email_body(selected_articles, theme_label)
 
     send_email(subject, body)
 
-    save_seen_ids([selected["id"]])
+    save_seen_ids([a["id"] for a in selected_articles])
 
-    print(f"Sent classic paper: {selected['title']}")
-    print(f"OpenAlex ID: {selected['id']}")
-    print(f"Citations: {selected['cited_by_count']}")
+    print(f"Sent {len(selected_articles)} classic papers.")
+    for article in selected_articles:
+        print(f"- {article['title']}")
+        print(f"  OpenAlex ID: {article['id']}")
+        print(f"  Citations: {article['cited_by_count']}")
 
 
 if __name__ == "__main__":
