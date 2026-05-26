@@ -24,9 +24,9 @@ journals:
   - Psychological Medicine
 
 journal_scores:
-  Nature Medicine: 4
-  Nature Genetics: 4
-  American Journal of Human Genetics: 4
+  Nature Medicine: 3
+  Nature Genetics: 3
+  American Journal of Human Genetics: 3
   Cell Genomics: 3
   Molecular Psychiatry: 4
   JAMA Psychiatry: 4
@@ -34,22 +34,21 @@ journal_scores:
   The Lancet Psychiatry: 4
   American Journal of Psychiatry: 4
   Biological Psychiatry: 3
-  Translational Psychiatry: 2
-  Neuropsychopharmacology: 2
+  Translational Psychiatry: 3
+  Neuropsychopharmacology: 3
   Genome Medicine: 3
-  Genome Biology: 2
-  Bioinformatics: 2
-  Genetic Epidemiology: 2
-  PLOS Genetics: 2
-  Schizophrenia Bulletin: 2
-  Psychological Medicine: 1
+  Genome Biology: 3
+  Bioinformatics: 3
+  Genetic Epidemiology: 3
+  PLOS Genetics: 3
+  Schizophrenia Bulletin: 3
+  Psychological Medicine: 3
 
 keyword_groups:
   high:
     score: 3
     terms:
       - polygenic risk score
-      - genetic
       - PRS
       - GWAS
       - psychiatric genomics
@@ -91,3 +90,5 @@ keyword_groups:
       - latent factor
       - treatment response
       - lithium
+      - genome
+      - genomic
