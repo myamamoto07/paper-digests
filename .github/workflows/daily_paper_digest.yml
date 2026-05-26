@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests argostranslate pyyaml
+          pip install requests pyyaml
 
       - name: Run paper digest
         env:
@@ -32,6 +32,8 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
           NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+          GAS_TRANSLATE_URL: ${{ secrets.GAS_TRANSLATE_URL }}
+          GAS_TRANSLATE_TOKEN: ${{ secrets.GAS_TRANSLATE_TOKEN }}
         run: python paper_digest.py
 
       - name: Commit seen PMIDs
