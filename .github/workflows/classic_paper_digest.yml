@@ -1,0 +1,47 @@
+name: Classic Paper Digest
+
+on:
+  schedule:
+    # 毎日 21:00 JST = 12:00 UTC
+    - cron: "10 23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  send-classic-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install requests pyyaml
+
+      - name: Run classic paper digest
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+          GAS_TRANSLATE_URL: ${{ secrets.GAS_TRANSLATE_URL }}
+          GAS_TRANSLATE_TOKEN: ${{ secrets.GAS_TRANSLATE_TOKEN }}
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: python classic_paper_digest.py
+
+      - name: Commit seen classic IDs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add seen_classic_ids.txt
+          git diff --cached --quiet || git commit -m "Update seen classic IDs"
+          git push
