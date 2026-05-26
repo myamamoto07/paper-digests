@@ -6,6 +6,8 @@ import yaml
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import xml.etree.ElementTree as ET
+from urllib.parse import quote
 
 
 CONFIG_FILE = "classic_config.yml"
@@ -107,6 +109,115 @@ def has_excluded_term(title):
             return True
     return False
 
+def clean_doi(doi):
+    if not doi:
+        return ""
+    doi = doi.strip()
+    doi = doi.replace("https://doi.org/", "")
+    doi = doi.replace("http://doi.org/", "")
+    return doi
+
+
+def fetch_pubmed_abstract_by_doi(doi):
+    doi = clean_doi(doi)
+    if not doi:
+        return ""
+
+    try:
+        email = os.environ.get("NCBI_EMAIL", "")
+
+        search_params = {
+            "db": "pubmed",
+            "term": f"{doi}[DOI]",
+            "retmode": "json",
+        }
+        if email:
+            search_params["email"] = email
+
+        search_res = requests.get(
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+            params=search_params,
+            timeout=20,
+        )
+        search_res.raise_for_status()
+
+        ids = search_res.json().get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return ""
+
+        pmid = ids[0]
+
+        fetch_params = {
+            "db": "pubmed",
+            "id": pmid,
+            "retmode": "xml",
+        }
+        if email:
+            fetch_params["email"] = email
+
+        fetch_res = requests.get(
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
+            params=fetch_params,
+            timeout=20,
+        )
+        fetch_res.raise_for_status()
+
+        root = ET.fromstring(fetch_res.text)
+        abstract_parts = []
+
+        for elem in root.findall(".//Abstract/AbstractText"):
+            text = " ".join(elem.itertext()).strip()
+            label = elem.attrib.get("Label")
+            if label:
+                abstract_parts.append(f"{label}: {text}")
+            else:
+                abstract_parts.append(text)
+
+        return "\n".join([p for p in abstract_parts if p])
+
+    except Exception as e:
+        print(f"PubMed abstract fetch failed for DOI {doi}: {e}")
+        return ""
+
+
+def fetch_crossref_abstract_by_doi(doi):
+    doi = clean_doi(doi)
+    if not doi:
+        return ""
+
+    try:
+        url = f"https://api.crossref.org/works/{quote(doi, safe='')}"
+        res = requests.get(url, timeout=20)
+        res.raise_for_status()
+
+        abstract = res.json().get("message", {}).get("abstract", "")
+        if not abstract:
+            return ""
+
+        abstract = re.sub(r"<[^>]+>", " ", abstract)
+        abstract = re.sub(r"\s+", " ", abstract).strip()
+        return abstract
+
+    except Exception as e:
+        print(f"Crossref abstract fetch failed for DOI {doi}: {e}")
+        return ""
+
+
+def fill_missing_abstract(article):
+    if article.get("abstract"):
+        return article
+
+    doi = article.get("doi", "")
+
+    abstract = fetch_pubmed_abstract_by_doi(doi)
+
+    if not abstract:
+        abstract = fetch_crossref_abstract_by_doi(doi)
+
+    if abstract:
+        article["abstract"] = abstract
+
+    return article
 
 def work_to_article(work):
     title = work.get("display_name") or "No title"
@@ -409,7 +520,12 @@ def main():
     selected_articles = candidates[:max_articles]
 
     for article in selected_articles:
-        article["abstract_ja"] = translate_to_japanese(article["abstract"])
+        article = fill_missing_abstract(article)
+
+        if article.get("abstract"):
+            article["abstract_ja"] = translate_to_japanese(article["abstract"])
+        else:
+            article["abstract_ja"] = "Abstractなし"
 
     today_jst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
     subject = f"Classic論文Digest {theme_label} {today_jst}"
