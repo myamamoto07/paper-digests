@@ -5,6 +5,51 @@ max_citations: 8000
 min_publication_year: 2000
 max_publication_year: 2025
 
+required_relevance_terms:
+  - genome-wide association
+  - GWAS
+  - polygenic
+  - polygenic risk score
+  - PRS
+  - heritability
+  - genetic correlation
+  - linkage disequilibrium
+  - LD score
+  - LDSC
+  - fine-mapping
+  - Mendelian randomization
+  - statistical genetics
+  - genetic epidemiology
+  - population stratification
+  - imputation
+  - genotype
+  - genetic variants
+  - schizophrenia
+  - bipolar disorder
+  - major depression
+  - psychiatric genetics
+  - psychiatric genomics
+
+exclude_terms:
+  - protocol
+  - editorial
+  - comment
+  - letter
+  - news
+  - correction
+  - erratum
+  - practice guidance
+  - guideline
+  - consensus statement
+  - classification criteria
+  - nonalcoholic fatty liver disease
+  - antiphospholipid syndrome
+  - structural equation modeling
+  - discriminant validity
+  - partial least squares
+  - G*Power
+  - SciPy
+
 weekday_themes:
   monday:
     label: 精神疾患GWAS・PRS
