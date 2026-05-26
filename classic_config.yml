@@ -1,0 +1,152 @@
+max_articles: 1
+max_candidates: 50
+min_citations: 300
+min_publication_year: 1950
+max_publication_year: 2021
+
+weekday_themes:
+  monday:
+    label: 精神疾患GWAS・PRS
+    query_terms:
+      - psychiatric genomics
+      - genome-wide association study
+      - GWAS
+      - polygenic risk score
+      - polygenic risk
+      - schizophrenia genetics
+      - bipolar disorder genetics
+      - depression genetics
+      - psychiatric disorders genetics
+
+  tuesday:
+    label: 遺伝統計学の方法論
+    query_terms:
+      - genome-wide association study
+      - GWAS method
+      - polygenic risk score method
+      - linkage disequilibrium score regression
+      - LDSC
+      - genetic correlation
+      - heritability estimation
+      - fine-mapping
+      - Mendelian randomization
+      - statistical genetics
+
+  wednesday:
+    label: 精神医学の古典・診断横断
+    query_terms:
+      - psychiatric diagnosis
+      - transdiagnostic psychiatry
+      - cross-disorder psychiatry
+      - dimensional psychiatry
+      - psychopathology
+      - DSM
+      - psychiatric nosology
+      - Research Domain Criteria
+      - RDoC
+
+  thursday:
+    label: 双極性障害・統合失調症・うつ病
+    query_terms:
+      - bipolar disorder
+      - schizophrenia
+      - major depressive disorder
+      - major depression
+      - mood disorder
+      - psychosis
+      - mania
+      - psychiatric genetics bipolar schizophrenia depression
+
+  friday:
+    label: 自殺・臨床予測・EHR
+    query_terms:
+      - suicide
+      - suicidal behavior
+      - suicide risk prediction
+      - clinical prediction psychiatry
+      - electronic health records psychiatry
+      - EHR psychiatry
+      - machine learning suicide
+      - psychiatric risk prediction
+      - treatment response psychiatry
+
+  saturday:
+    label: 遺伝統計学の方法論
+    query_terms:
+      - statistical genetics
+      - genetic epidemiology
+      - genome-wide complex trait analysis
+      - GCTA
+      - mixed model association
+      - imputation genetics
+      - population stratification
+      - principal components analysis genetics
+      - rare variant association
+      - multi-omics genetics
+
+  sunday:
+    label: 総合
+    query_terms:
+      - psychiatric genetics
+      - statistical genetics
+      - polygenic risk score
+      - GWAS
+      - schizophrenia
+      - bipolar disorder
+      - major depression
+      - suicide
+      - genetic correlation
+      - Mendelian randomization
+
+preferred_journals:
+  - Nature
+  - Science
+  - Nature Genetics
+  - Nature Medicine
+  - American Journal of Human Genetics
+  - PLOS Genetics
+  - Molecular Psychiatry
+  - JAMA Psychiatry
+  - American Journal of Psychiatry
+  - The Lancet
+  - The Lancet Psychiatry
+  - Biological Psychiatry
+  - Psychological Medicine
+  - Schizophrenia Bulletin
+  - Archives of General Psychiatry
+  - American Journal of Psychiatry
+  - Bioinformatics
+  - Genetic Epidemiology
+  - Statistics in Medicine
+  - Biostatistics
+  - The New England Journal of Medicine
+  - Cell
+  - Neuron
+
+journal_bonus:
+  Nature: 50
+  Science: 50
+  Nature Genetics: 50
+  Nature Medicine: 45
+  American Journal of Human Genetics: 40
+  Molecular Psychiatry: 35
+  JAMA Psychiatry: 35
+  American Journal of Psychiatry: 35
+  The Lancet Psychiatry: 35
+  Biological Psychiatry: 30
+  PLOS Genetics: 30
+  Psychological Medicine: 20
+  Schizophrenia Bulletin: 20
+  Bioinformatics: 20
+  Genetic Epidemiology: 20
+  Statistics in Medicine: 15
+  Biostatistics: 15
+
+exclude_terms:
+  - protocol
+  - editorial
+  - comment
+  - letter
+  - news
+  - correction
+  - erratum
