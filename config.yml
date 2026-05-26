@@ -1,0 +1,82 @@
+lookback_days: 3
+max_articles: 5
+score_threshold: 5
+
+journals:
+  - Nature Genetics
+  - American Journal of Human Genetics
+  - Cell Genomics
+  - Molecular Psychiatry
+  - JAMA Psychiatry
+  - Lancet Psychiatry
+  - The Lancet Psychiatry
+  - American Journal of Psychiatry
+  - Biological Psychiatry
+  - Translational Psychiatry
+  - Neuropsychopharmacology
+  - Genome Medicine
+  - Genome Biology
+  - Bioinformatics
+  - Genetic Epidemiology
+  - PLOS Genetics
+  - Schizophrenia Bulletin
+  - Psychological Medicine
+
+journal_scores:
+  Nature Genetics: 3
+  American Journal of Human Genetics: 3
+  Cell Genomics: 3
+  Molecular Psychiatry: 3
+  JAMA Psychiatry: 3
+  Lancet Psychiatry: 3
+  The Lancet Psychiatry: 3
+  American Journal of Psychiatry: 3
+  Biological Psychiatry: 3
+  Genome Medicine: 3
+
+keyword_groups:
+  high:
+    score: 3
+    terms:
+      - polygenic risk score
+      - PRS
+      - GWAS
+      - psychiatric genomics
+      - genomic SEM
+      - genetic correlation
+      - cross-disorder
+      - transdiagnostic
+      - fine-mapping
+      - Mendelian randomization
+
+  disease:
+    score: 2
+    terms:
+      - bipolar disorder
+      - schizophrenia
+      - major depression
+      - major depressive disorder
+      - suicide
+      - suicidal
+      - autism
+      - ADHD
+      - anxiety
+      - PTSD
+      - obsessive-compulsive disorder
+
+  extra:
+    score: 1
+    terms:
+      - machine learning
+      - deep learning
+      - multi-omics
+      - pathway
+      - gene expression
+      - brain imaging
+      - biobank
+      - phenome-wide
+      - electronic health record
+      - matrix factorization
+      - latent factor
+      - treatment response
+      - lithium
