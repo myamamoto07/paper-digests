@@ -1,4 +1,4 @@
-lookback_days: 3
+lookback_days: 10
 max_articles: 10
 score_threshold: 5
 
