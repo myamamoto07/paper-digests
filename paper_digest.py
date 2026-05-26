@@ -9,8 +9,6 @@ from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-import argostranslate.package
-import argostranslate.translate
 
 CONFIG_FILE = "config.yml"
 SEEN_FILE = "seen_pmids.txt"
@@ -245,46 +243,33 @@ def score_article(article):
 
     return score, reasons
 
-
-def setup_argos_translation():
-    installed_languages = argostranslate.translate.get_installed_languages()
-    has_en_ja = any(
-        lang.code == "en" and any(t.to_lang.code == "ja" for t in lang.translations_from)
-        for lang in installed_languages
-    )
-
-    if has_en_ja:
-        return
-
-    argostranslate.package.update_package_index()
-    available_packages = argostranslate.package.get_available_packages()
-
-    package_to_install = None
-    for package in available_packages:
-        if package.from_code == "en" and package.to_code == "ja":
-            package_to_install = package
-            break
-
-    if package_to_install is None:
-        raise RuntimeError("English to Japanese translation package was not found.")
-
-    path = package_to_install.download()
-    argostranslate.package.install_from_path(path)
-
-
 def translate_to_japanese(text):
     if not text:
         return "Abstractなし"
 
-    # 長すぎる場合に備えて分割
-    chunks = textwrap.wrap(text, width=1800, break_long_words=False, replace_whitespace=False)
-    translated_chunks = []
+    gas_url = os.environ.get("GAS_TRANSLATE_URL")
+    gas_token = os.environ.get("GAS_TRANSLATE_TOKEN")
 
-    for chunk in chunks:
-        translated = argostranslate.translate.translate(chunk, "en", "ja")
-        translated_chunks.append(translated)
+    if not gas_url or not gas_token:
+        raise RuntimeError("GAS_TRANSLATE_URL or GAS_TRANSLATE_TOKEN is not set.")
 
-    return "\n".join(translated_chunks)
+    payload = {
+        "token": gas_token,
+        "text": text,
+        "source": "en",
+        "target": "ja",
+    }
+
+    r = requests.post(gas_url, json=payload, timeout=60)
+    r.raise_for_status()
+
+    data = r.json()
+
+    if not data.get("ok"):
+        raise RuntimeError(f"Google Apps Script translation failed: {data.get('error')}")
+
+    return data.get("translated", "")
+
 
 
 def build_email_body(articles):
@@ -376,7 +361,6 @@ def main():
         print("No articles passed score threshold.")
         return
 
-    setup_argos_translation()
 
     for article in selected_articles:
         article["abstract_ja"] = translate_to_japanese(article["abstract"])
