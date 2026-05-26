@@ -1,7 +1,12 @@
 https://openalex.org/W1951724000
+https://openalex.org/W1974047233
 https://openalex.org/W2051978340
+https://openalex.org/W2054330426
+https://openalex.org/W2076154138
 https://openalex.org/W2087484885
 https://openalex.org/W2105846236
 https://openalex.org/W2131350133
 https://openalex.org/W2146512944
+https://openalex.org/W2537623931
+https://openalex.org/W2734724639
 https://openalex.org/W3003257820
