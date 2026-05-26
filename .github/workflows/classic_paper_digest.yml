@@ -2,7 +2,6 @@ name: Classic Paper Digest
 
 on:
   schedule:
-    # 毎日 21:00 JST = 12:00 UTC
     - cron: "10 23 * * *"
   workflow_dispatch:
 
