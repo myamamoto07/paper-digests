@@ -57,7 +57,7 @@ def build_pubmed_query(days=3):
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=days)
 
-    date_query = f'("{start}"[Date - Publication] : "{today}"[Date - Publication])'
+    date_query = f'("{start}"[Date - Entrez] : "{today}"[Date - Entrez])'
 
     query = f"({journal_query}) AND ({topic_query}) AND {date_query}"
     return query
@@ -81,6 +81,62 @@ def pubmed_esearch(query, retmax=50):
     data = r.json()
     return data.get("esearchresult", {}).get("idlist", [])
 
+def get_text_or_empty(parent, path):
+    el = parent.find(path)
+    return el.text.strip() if el is not None and el.text else ""
+
+
+def extract_publication_date(article):
+    # ArticleDate があれば優先する
+    article_date = article.find(".//ArticleDate")
+    if article_date is not None:
+        year = get_text_or_empty(article_date, "Year")
+        month = get_text_or_empty(article_date, "Month")
+        day = get_text_or_empty(article_date, "Day")
+
+        if year:
+            parts = [year]
+            if month:
+                parts.append(month.zfill(2))
+            if day:
+                parts.append(day.zfill(2))
+            return "-".join(parts)
+
+    # JournalIssue の PubDate を使う
+    pub_date = article.find(".//Journal/JournalIssue/PubDate")
+    if pub_date is not None:
+        year = get_text_or_empty(pub_date, "Year")
+        month = get_text_or_empty(pub_date, "Month")
+        day = get_text_or_empty(pub_date, "Day")
+        medline_date = get_text_or_empty(pub_date, "MedlineDate")
+
+        if year:
+            parts = [year]
+            if month:
+                parts.append(month)
+            if day:
+                parts.append(day)
+            return " ".join(parts)
+
+        if medline_date:
+            return medline_date
+
+    return "Unknown date"
+
+
+def extract_pubmed_entry_date(article):
+    # PubMedに登録された日付を取る
+    for status in ["pubmed", "entrez", "medline"]:
+        date_el = article.find(f".//PubmedData/History/PubMedPubDate[@PubStatus='{status}']")
+        if date_el is not None:
+            year = get_text_or_empty(date_el, "Year")
+            month = get_text_or_empty(date_el, "Month")
+            day = get_text_or_empty(date_el, "Day")
+
+            if year and month and day:
+                return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+    return "Unknown date"
 
 def pubmed_efetch(pmids):
     if not pmids:
@@ -112,15 +168,8 @@ def pubmed_efetch(pmids):
         journal_el = article.find(".//Journal/Title")
         journal = journal_el.text.strip() if journal_el is not None and journal_el.text else "Unknown journal"
 
-        year_el = article.find(".//PubDate/Year")
-        medline_date_el = article.find(".//PubDate/MedlineDate")
-
-        if year_el is not None and year_el.text:
-            pub_date = year_el.text
-        elif medline_date_el is not None and medline_date_el.text:
-            pub_date = medline_date_el.text
-        else:
-            pub_date = "Unknown date"
+        pub_date = extract_publication_date(article)
+        pubmed_entry_date = extract_pubmed_entry_date(article)
 
         abstract_parts = []
         for abs_el in article.findall(".//Abstract/AbstractText"):
@@ -139,6 +188,7 @@ def pubmed_efetch(pmids):
                 "title": title,
                 "journal": journal,
                 "pub_date": pub_date,
+                "pubmed_entry_date": pubmed_entry_date,
                 "abstract": abstract,
                 "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else "",
             }
@@ -258,6 +308,7 @@ def build_email_body(articles):
         lines.append("")
         lines.append(f"Journal: {a['journal']}")
         lines.append(f"Publication date: {a['pub_date']}")
+        lines.append(f"PubMed entry date: {a.get('pubmed_entry_date', 'Unknown date')}")
         lines.append(f"PMID: {a['pmid']}")
         lines.append(f"Score: {a['score']}")
         lines.append(f"注目理由: {reasons}")
@@ -323,7 +374,6 @@ def main():
 
     if not selected_articles:
         print("No articles passed score threshold.")
-        save_seen_pmids(new_pmids)
         return
 
     setup_argos_translation()
@@ -337,7 +387,7 @@ def main():
 
     send_email(subject, body)
 
-    save_seen_pmids(new_pmids)
+    save_seen_pmids([a["pmid"] for a in selected_articles])
 
     print(f"Sent {len(selected_articles)} articles.")
 
