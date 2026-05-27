@@ -1,3 +1,4 @@
 # paper-digests
 
-https://console.cron-job.org/でスケジュール管理中
+https://console.cron-job.org/
+でスケジュール管理中
