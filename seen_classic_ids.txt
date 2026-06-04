@@ -33,6 +33,8 @@ https://openalex.org/W2891230948
 https://openalex.org/W2895486342
 https://openalex.org/W2911487850
 https://openalex.org/W2970686316
+https://openalex.org/W3028329270
+https://openalex.org/W3044382958
 https://openalex.org/W3133859624
 https://openalex.org/W3162259891
 https://openalex.org/W3164324796
