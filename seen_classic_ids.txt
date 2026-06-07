@@ -7,6 +7,8 @@ https://openalex.org/W2098597355
 https://openalex.org/W2101357408
 https://openalex.org/W2103783427
 https://openalex.org/W2109334244
+https://openalex.org/W2124649657
+https://openalex.org/W2134555277
 https://openalex.org/W2134783591
 https://openalex.org/W2136435696
 https://openalex.org/W2140978740
