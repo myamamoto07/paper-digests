@@ -354,7 +354,7 @@ def collect_candidates(theme):
     candidates = {}
 
     max_candidates = CONFIG.get("max_candidates", 50)
-    per_term = 20
+    per_term = 200
 
     for term in theme.get("query_terms", []):
         print(f"Searching OpenAlex: {term}")
