@@ -128,6 +128,7 @@ https://openalex.org/W2102213696
 https://openalex.org/W2102521965
 https://openalex.org/W2102945991
 https://openalex.org/W2103783427
+https://openalex.org/W2104093114
 https://openalex.org/W2104905104
 https://openalex.org/W2105281057
 https://openalex.org/W2106036991
@@ -263,6 +264,7 @@ https://openalex.org/W2166401337
 https://openalex.org/W2166423384
 https://openalex.org/W2166501262
 https://openalex.org/W2166945572
+https://openalex.org/W2167423131
 https://openalex.org/W2168357345
 https://openalex.org/W2168953165
 https://openalex.org/W2169795969
@@ -347,6 +349,7 @@ https://openalex.org/W2761275051
 https://openalex.org/W2768238915
 https://openalex.org/W2770092353
 https://openalex.org/W2770598799
+https://openalex.org/W2775393828
 https://openalex.org/W2777388159
 https://openalex.org/W2780560743
 https://openalex.org/W2788337440
@@ -389,6 +392,7 @@ https://openalex.org/W2937440490
 https://openalex.org/W2940726923
 https://openalex.org/W2944540884
 https://openalex.org/W2944611832
+https://openalex.org/W2949275660
 https://openalex.org/W2950375827
 https://openalex.org/W2950709739
 https://openalex.org/W2951553270
@@ -420,6 +424,7 @@ https://openalex.org/W3012009865
 https://openalex.org/W3026319555
 https://openalex.org/W3028329270
 https://openalex.org/W3029661147
+https://openalex.org/W3042068575
 https://openalex.org/W3044382958
 https://openalex.org/W3045023537
 https://openalex.org/W3045441625
